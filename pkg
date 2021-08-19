@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# see also: https://wiki.voidlinux.org/Rosetta_stone
+
+pkg() {
+    if test -x /usr/sbin/pkg; then
+        # stick with the original
+        return /usr/sbin/pkg $*
+    fi
+
+    arg=$1 # the sub command
+    shift  # pass everything else to $tool
+
+    # no sudo if root
+    sudo=""
+    if test $EUID -ne 0; then
+        sudo="sudo"
+    fi
+
+    # getopts
+    case $arg in
+        info|list|search|install|remove|add|which|update|depends)
+            :
+            ;;
+        *)
+            echo "Usage: pkg info|list|search|which|install|add|remove|update|depends"
+            exit 1
+            ;;
+    esac
+
+    # package management command lines
+    
+    # wiki:
+    # https://wiki.debian.org/DebianPackageManagement
+    declare -A APT=([info]="dpkg -l"
+                    [list]="dpkg -L"
+                    [search]="apt-cache search"
+                    [install]="$sudo apt-get install"
+                    [remove]="$sudo dpkg -r"
+                    [add]="$sudo dpkg -i"
+                    [which]="dpkg-query -S"
+                    [update]="$sudo apt-get update && $sudo apt-get upgrade"
+                    [depends]="apt-cache depends")
+
+    # void handbook:
+    # https://docs.voidlinux.org/xbps/index.html
+    declare -A XBP=([info]="xbps-query -l"
+                    [list]="xbps-query -f"
+                    [search]="xbps-query -Rs"
+                    [install]="$sudo xbps-install"
+                    [add]="$sudo xbps-install"
+                    [remove]="$sudo xbps-remove -R"
+                    [which]="xbps-query -o"
+                    [update]="$sudo xbps-install -Su"
+                    [depends]="xbps-query --fulldeptree")
+
+    # man page:
+    # https://archlinux.org/pacman/pacman.8.html
+    declare -A PAC=([info]="pacman -Q"
+                    [list]="pacman -Ql"
+                    [search]="pacman -Ss"
+                    [install]="$sudo pacman -S"
+                    [remove]="$sudo pacman -Rs"
+                    [add]="$sudo pacman -U"
+                    [which]="pkgfile -s"
+                    [update]="$sudo pacman -Syu"
+                    [depends]="pacman -Qi")
+
+    # cheat sheet:
+    # https://access.redhat.com/sites/default/files/attachments/rh_yum_cheatsheet_1214_jcs_print-1.pdf
+    declare -A YUM=([info]="yum list installed"
+                    [list]="yum info"
+                    [search]="yum search"
+                    [install]="$sudo yum install"
+                    [remove]="$sudo yum autoremove"
+                    [add]="$sudo yum install"
+                    [which]="yum provides"
+                    [update]="$sudo yum update && $sudo yum upgrade"
+                    [depends]="yum deplist")
+
+    # man page:
+    #
+    declare -A ZYP=([info]="zypper search --installed-only"
+                    [list]="rpm -ql"
+                    [search]="zypper search"
+                    [install]="$sudo zypper install"
+                    [remove]="$sudo zypper remove -u"
+                    [add]="$sudo zypper install"
+                    [which]="zypper search -f"
+                    [update]="$sudo zypper update"
+                    [depends]="zypper info --requires")
+     
+    if type apt-get > /dev/null 2>&1; then
+        ${APT[$arg]} $*
+    elif type xbps-query > /dev/null 2>&1; then
+        ${XBP[$arg]} $*
+    elif type yum > /dev/null 2>&1; then
+        ${YUM[$arg]} $*
+    elif type dnf > /dev/null 2>&1; then
+        # same shit
+        alias yum=dnf
+        ${YUM[$arg]} $*
+    elif type pacman > /dev/null 2>&1; then
+        ${PAC[$arg]} $*
+    elif type zypper > /dev/null 2>&1; then
+        ${ZYP[$arg]} $*
+    else
+        echo "Oops, no known package management tool could be found!"
+        exit 1
+    fi
+}
+
+pkg $*
