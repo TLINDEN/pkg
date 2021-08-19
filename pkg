@@ -79,7 +79,7 @@ pkg() {
                     [depends]="yum deplist")
 
     # man page:
-    #
+    # https://en.opensuse.org/SDB:Zypper_manual_(plain)
     declare -A ZYP=([info]="zypper search --installed-only"
                     [list]="rpm -ql"
                     [search]="zypper search"
